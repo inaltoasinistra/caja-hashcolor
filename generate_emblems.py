@@ -9,6 +9,7 @@ from palette import (
     ANGLES_DEGREES,
     CLEAR_EMBLEM_NAME,
     PALETTE,
+    PALETTE_SIZE,
     VALID_ABAC_TRIPLES,
     VALID_PAIRS,
     VALID_QUADS,
@@ -67,6 +68,16 @@ def _render_pie(color_indices: tuple[int, ...]) -> Image.Image:
 def generate_emblems() -> None:
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     generated_names = set()
+
+    for index in range(PALETTE_SIZE):
+        # A single-band "strip" with only one color fills the whole circle - reusing
+        # _render_bands() instead of a one-off solid-fill function keeps the same
+        # outline/anti-aliasing treatment as every other emblem. The angle is
+        # irrelevant (rotating a single full-height band changes nothing visible), so
+        # there's just one PNG per color, not one per angle.
+        name = f'hashcolor-1-{index}'
+        _render_bands((index,), 0).save(os.path.join(OUTPUT_DIR, f'{name}.png'))
+        generated_names.add(name)
 
     for pair in VALID_PAIRS:
         for order in permutations(pair):

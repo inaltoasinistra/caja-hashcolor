@@ -20,7 +20,8 @@ from palette import (
 
 NAME_PATTERN = re.compile(
     r'^hashcolor-('
-    r'2-(?P<pair>\d-\d)-(?P<angle1>\d+)'
+    r'1-(?P<solo>\d)'
+    r'|2-(?P<pair>\d-\d)-(?P<angle1>\d+)'
     r'|3ba-(?P<abapair>\d-\d)-(?P<angle3>\d+)'
     r'|3b-(?P<triple>\d-\d-\d)-(?P<angle2>\d+)'
     r'|3p-(?P<pie>\d-\d-\d)'
@@ -53,7 +54,8 @@ def indices_in_name(name: str) -> tuple[int, ...]:
     match = NAME_PATTERN.match(name)
     assert match is not None, f'unexpected emblem name format: {name}'
     group = (
-        match.group('pair')
+        match.group('solo')
+        or match.group('pair')
         or match.group('abapair')
         or match.group('triple')
         or match.group('pie')
@@ -264,6 +266,21 @@ class TestHashToEmblemName(unittest.TestCase):
                 cycle = tuple(int(part) for part in match.group('quad').split('-'))
                 self.assertIn(cycle, VALID_QUADS)
         self.assertTrue(found_quad, 'expected at least one 4p4-style name across 200 samples')
+
+    def test_solid_color_style_uses_a_palette_index(self):
+        """The 1-color family (plain solid emblem, no split) picks straight from the
+        palette rather than a filtered pool like VALID_PAIRS/VALID_TRIPLES - there's
+        no second color for it to need contrast against."""
+        found_solo = False
+        for data in [bytes([i]) for i in range(200)]:
+            name = hash_to_emblem_name(digest_of(data))
+            match = NAME_PATTERN.match(name)
+            if match.group('solo') is not None:
+                found_solo = True
+                index = int(match.group('solo'))
+                self.assertGreaterEqual(index, 0)
+                self.assertLess(index, PALETTE_SIZE)
+        self.assertTrue(found_solo, 'expected at least one 1-style name across 200 samples')
 
     def test_five_slice_pattern_has_no_adjacent_same_color(self):
         """Calls the same five_slice_pie_pattern() that generate_emblems.py renders

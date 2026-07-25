@@ -110,8 +110,18 @@ def hash_to_emblem_name(digest: bytes) -> str:
     # below is a plain index into a small, deterministic list, so the same digest
     # always maps to the same emblem name and generate_emblems.py can enumerate every
     # reachable name up front.
-    family = digest[0] % 4
+    family = digest[0] % 5
     angle = ANGLES_DEGREES[digest[6] % len(ANGLES_DEGREES)]
+
+    if family == 4:
+        # Plain solid color, no split at all - given equal footing with the other
+        # four multi-color families (all reachable via the same digest[0] % 5 choice)
+        # even though it only has PALETTE_SIZE distinguishable outcomes instead of
+        # dozens: two unrelated files landing on the same solid hue will look
+        # identical, a real loss of distinguishability, but a plain color is also the
+        # simplest, calmest-looking emblem, and worth having in the mix rather than
+        # only ever showing busier multi-color combos.
+        return f'hashcolor-1-{digest[1] % PALETTE_SIZE}'
 
     if family == 0:
         # 2-color combos pick among four layouts, all reusing the same
