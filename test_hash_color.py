@@ -10,6 +10,8 @@ gi.require_version('Caja', '2.0')
 gi.require_version('Gio', '2.0')
 gi.require_version('Gtk', '3.0')
 
+from gi.repository import Gio, GLib  # noqa: E402
+
 import config as config_module  # noqa: E402
 import hash_color  # noqa: E402
 import hashing  # noqa: E402
@@ -32,6 +34,12 @@ class FakeAsyncFullHash:
     def complete(self, digest: bytes) -> None:
         self.on_complete(digest)
 
+    def cancel(self) -> None:
+        """Simulates the ASYNC_HASH_TIMEOUT_MS watchdog (or any other Gio.Cancellable
+        cancellation) firing while this hash is still running."""
+        error = GLib.Error.new_literal(Gio.io_error_quark(), 'cancelled', Gio.IOErrorEnum.CANCELLED)
+        self.on_error(error)
+
 
 class MockLocation:
     def __init__(self, path: str) -> None:
@@ -45,6 +53,7 @@ class MockFile:
     def __init__(self, path: str) -> None:
         self._path = path
         self.emblems: list[str] = []
+        self.invalidate_count = 0
 
     def get_location(self) -> MockLocation:
         return MockLocation(self._path)
@@ -53,7 +62,7 @@ class MockFile:
         self.emblems.append(name)
 
     def invalidate_extension_info(self) -> None:
-        pass
+        self.invalidate_count += 1
 
 
 class TestUpdateFileInfoFull(unittest.TestCase):
@@ -173,6 +182,32 @@ class TestUpdateFileInfoFull(unittest.TestCase):
         self._dispatch(f)
         self.assertEqual(len(FakeAsyncFullHash.instances), 1)
         self.assertEqual(len(hash_color._queue._pending), 0)
+
+    def test_timed_out_hash_does_not_leave_a_stuck_computing_emblem(self):
+        """Regression test: the ASYNC_HASH_TIMEOUT_MS watchdog cancels a hash that's
+        taking too long (e.g. a large file on a slow network mount) so the queue can
+        move on to the next file. Before the fix, that cancellation never told Caja
+        to re-check the timed-out file, so it kept showing the "synchronizing"
+        emblem forever even though nothing was hashing it anymore - and every
+        subsequent file that also timed out piled up the same way, showing several
+        "synchronizing" emblems at once instead of only the one genuinely active."""
+        config_module.set_mode_for_directory(self.test_dir, 'precise')
+        slow_file = self._make_file('slow.bin')
+        next_file = self._make_file('next.bin')
+        self._dispatch(slow_file)
+        self._dispatch(next_file)
+        self.assertEqual(slow_file.emblems[-1], hash_color.COMPUTING_EMBLEM_NAME)
+
+        # Real Caja only ever re-checks a file when something calls
+        # invalidate_extension_info() for it - nothing in this test loop does that on
+        # its own, unlike self._dispatch(), which bypasses Caja entirely and always
+        # reflects the current state whether or not the production code actually
+        # asked for a re-check. So the regression this guards against (a stuck
+        # "synchronizing" emblem with nothing left to ever refresh it) has to be
+        # caught here, on the invalidation call count itself.
+        invalidate_count_before_timeout = slow_file.invalidate_count
+        FakeAsyncFullHash.instances[0].cancel()  # simulates the watchdog timing it out
+        self.assertGreater(slow_file.invalidate_count, invalidate_count_before_timeout)
 
 
 if __name__ == '__main__':

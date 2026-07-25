@@ -238,7 +238,15 @@ class HashColorExtension(GObject.GObject, Caja.InfoProvider, Caja.PropertyPagePr
                 _handle_paths.pop(handle, None)
                 _path_handles.pop(path, None)
                 if hashing.is_cancelled_error(exc):
-                    done()  # navigated away, or setting changed mid-hash: no completion expected
+                    # Covers both a directory's setting changing mid-hash (already
+                    # followed by _refresh_known_files(), making this a harmless extra
+                    # call) and the ASYNC_HASH_TIMEOUT_MS watchdog, which has nothing
+                    # else invalidating this file - without this, a file that times out
+                    # keeps showing the "synchronizing" emblem forever (nothing ever
+                    # asks Caja to re-check it), even once _path_handles no longer
+                    # considers its hash to be running.
+                    file.invalidate_extension_info()
+                    done()  # no completion expected
                     return
                 finish(None)
 
