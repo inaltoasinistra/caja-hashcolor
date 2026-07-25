@@ -1,21 +1,10 @@
 #!/usr/bin/env python3
 import colorsys
 import os
-from itertools import permutations
 
 from PIL import Image, ImageDraw
 
-from palette import (
-    ANGLES_DEGREES,
-    CLEAR_EMBLEM_NAME,
-    PALETTE,
-    PALETTE_SIZE,
-    VALID_ABAC_TRIPLES,
-    VALID_PAIRS,
-    VALID_QUADS,
-    VALID_TRIPLES,
-    five_slice_pie_pattern,
-)
+from palette import ALL_EMBLEMS, CLEAR_EMBLEM_NAME, PALETTE
 
 EMBLEM_SIZE_PX = 32
 SUPERSAMPLE = 8  # render larger then downscale, for anti-aliased edges at 32px
@@ -69,62 +58,13 @@ def generate_emblems() -> None:
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     generated_names = set()
 
-    for index in range(PALETTE_SIZE):
-        # A single-band "strip" with only one color fills the whole circle - reusing
-        # _render_bands() instead of a one-off solid-fill function keeps the same
-        # outline/anti-aliasing treatment as every other emblem. The angle is
-        # irrelevant (rotating a single full-height band changes nothing visible), so
-        # there's just one PNG per color, not one per angle.
-        name = f'hashcolor-1-{index}'
-        _render_bands((index,), 0).save(os.path.join(OUTPUT_DIR, f'{name}.png'))
-        generated_names.add(name)
-
-    for pair in VALID_PAIRS:
-        for order in permutations(pair):
-            for angle in ANGLES_DEGREES:
-                name = f'hashcolor-2-{order[0]}-{order[1]}-{angle}'
-                _render_bands(order, angle).save(os.path.join(OUTPUT_DIR, f'{name}.png'))
-                generated_names.add(name)
-
-                aba_name = f'hashcolor-3ba-{order[0]}-{order[1]}-{angle}'
-                aba_indices = (order[0], order[1], order[0])
-                _render_bands(aba_indices, angle).save(os.path.join(OUTPUT_DIR, f'{aba_name}.png'))
-                generated_names.add(aba_name)
-
-            # 4- and 6-slice pies alternating the pair - even slice counts alternate
-            # cleanly between exactly 2 colors with no two same-colored slices ever
-            # touching (unlike an odd count, see the 5p pattern below).
-            four_name = f'hashcolor-4p-{order[0]}-{order[1]}'
-            _render_pie(order * 2).save(os.path.join(OUTPUT_DIR, f'{four_name}.png'))
-            generated_names.add(four_name)
-
-            six_name = f'hashcolor-6p-{order[0]}-{order[1]}'
-            _render_pie(order * 3).save(os.path.join(OUTPUT_DIR, f'{six_name}.png'))
-            generated_names.add(six_name)
-
-    for triple in VALID_TRIPLES:
-        for order in permutations(triple):
-            for angle in ANGLES_DEGREES:
-                name = f'hashcolor-3b-{order[0]}-{order[1]}-{order[2]}-{angle}'
-                _render_bands(order, angle).save(os.path.join(OUTPUT_DIR, f'{name}.png'))
-                generated_names.add(name)
-            pie_name = f'hashcolor-3p-{order[0]}-{order[1]}-{order[2]}'
-            _render_pie(order).save(os.path.join(OUTPUT_DIR, f'{pie_name}.png'))
-            generated_names.add(pie_name)
-
-            five_name = f'hashcolor-5p-{order[0]}-{order[1]}-{order[2]}'
-            _render_pie(five_slice_pie_pattern(order)).save(os.path.join(OUTPUT_DIR, f'{five_name}.png'))
-            generated_names.add(five_name)
-
-    for anchor, b, c in VALID_ABAC_TRIPLES:
-        for b_order, c_order in permutations((b, c)):
-            name = f'hashcolor-4p3-{anchor}-{b_order}-{c_order}'
-            _render_pie((anchor, b_order, anchor, c_order)).save(os.path.join(OUTPUT_DIR, f'{name}.png'))
-            generated_names.add(name)
-
-    for cycle in VALID_QUADS:
-        name = f'hashcolor-4p4-{cycle[0]}-{cycle[1]}-{cycle[2]}-{cycle[3]}'
-        _render_pie(cycle).save(os.path.join(OUTPUT_DIR, f'{name}.png'))
+    # ALL_EMBLEMS is the same list hash_to_emblem_name() indexes into - rendering
+    # straight off it (instead of re-deriving the reachable set with a parallel set of
+    # loops) guarantees this can never fall out of sync with what's actually
+    # selectable.
+    for name, kind, indices, angle in ALL_EMBLEMS:
+        image = _render_bands(indices, angle) if kind == 'band' else _render_pie(indices)
+        image.save(os.path.join(OUTPUT_DIR, f'{name}.png'))
         generated_names.add(name)
 
     clear_image = Image.new('RGBA', (EMBLEM_SIZE_PX, EMBLEM_SIZE_PX), (0, 0, 0, 0))

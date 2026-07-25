@@ -105,67 +105,84 @@ def five_slice_pie_pattern(order: tuple[int, int, int]) -> tuple[int, ...]:
     return order + order[:2]
 
 
-def hash_to_emblem_name(digest: bytes) -> str:
-    # Top-level choice of which color-pool/shape family to draw from. Every choice
-    # below is a plain index into a small, deterministic list, so the same digest
-    # always maps to the same emblem name and generate_emblems.py can enumerate every
-    # reachable name up front.
-    family = digest[0] % 5
-    angle = ANGLES_DEGREES[digest[6] % len(ANGLES_DEGREES)]
+# name, render kind ('band' or 'pie'), color indices to render, band rotation angle
+# (unused for 'pie'). The single source of truth for every emblem that can ever be
+# selected or rendered - hash_to_emblem_name() below picks an entry by position, and
+# generate_emblems.py renders every entry, so the two can never disagree about what's
+# reachable the way two independently-maintained enumerations could silently drift.
+EmblemSpec = tuple[str, str, tuple[int, ...], int]
 
-    if family == 4:
-        # Plain solid color, no split at all - given equal footing with the other
-        # four multi-color families (all reachable via the same digest[0] % 5 choice)
-        # even though it only has PALETTE_SIZE distinguishable outcomes instead of
-        # dozens: two unrelated files landing on the same solid hue will look
-        # identical, a real loss of distinguishability, but a plain color is also the
-        # simplest, calmest-looking emblem, and worth having in the mix rather than
-        # only ever showing busier multi-color combos.
-        return f'hashcolor-1-{digest[1] % PALETTE_SIZE}'
 
-    if family == 0:
-        # 2-color combos pick among four layouts, all reusing the same
-        # contrast-filtered pair pool (far larger than VALID_TRIPLES - see comment on
+def _build_all_emblems() -> list[EmblemSpec]:
+    specs: list[EmblemSpec] = []
+
+    for index in range(PALETTE_SIZE):
+        # Plain solid color, no split - a single full-height "band" fills the whole
+        # circle, so this reuses the band renderer with one color instead of a
+        # one-off solid-fill function. Angle is irrelevant (rotating a single
+        # full-height band changes nothing visible), so there's just one entry per
+        # color, not one per angle.
+        specs.append((f'hashcolor-1-{index}', 'band', (index,), 0))
+
+    for pair in VALID_PAIRS:
+        # 2-color combos get four layouts, all reusing the same contrast-filtered
+        # pair pool (far larger than VALID_TRIPLES - see comment on
         # PALETTE_HUES_DEGREES): a plain split, a 3-band (a, b, a), and 4- and
         # 6-slice pies alternating the pair (even slice counts alternate cleanly with
         # only 2 colors, unlike 5 - see the 5p style below).
-        combo = VALID_PAIRS[digest[1] % len(VALID_PAIRS)]
-        order = sorted(combo, key=lambda index: digest[2 + index])
-        style = digest[7] % 4
-        if style == 0:
-            return f'hashcolor-2-{order[0]}-{order[1]}-{angle}'
-        if style == 1:
-            return f'hashcolor-3ba-{order[0]}-{order[1]}-{angle}'
-        if style == 2:
-            return f'hashcolor-4p-{order[0]}-{order[1]}'
-        return f'hashcolor-6p-{order[0]}-{order[1]}'
+        for order in permutations(pair):
+            for angle in ANGLES_DEGREES:
+                specs.append((f'hashcolor-2-{order[0]}-{order[1]}-{angle}', 'band', order, angle))
+                aba_indices = (order[0], order[1], order[0])
+                specs.append((f'hashcolor-3ba-{order[0]}-{order[1]}-{angle}', 'band', aba_indices, angle))
+            specs.append((f'hashcolor-4p-{order[0]}-{order[1]}', 'pie', order * 2, 0))
+            specs.append((f'hashcolor-6p-{order[0]}-{order[1]}', 'pie', order * 3, 0))
 
-    if family == 1:
+    for triple in VALID_TRIPLES:
         # 3-color combos, all mutually >=90 apart (every pair here can end up
-        # adjacent depending on the layout, so all 3 pairs need contrast): 3p/3b
-        # place each color once; 5p repeats the pattern as a 5-slice pie
-        # (a, b, c, a, b) - verified to never put two same-colored slices next to
-        # each other (including the wrap-around seam), so it never looks like a
-        # lower slice count than it actually has.
-        combo = VALID_TRIPLES[digest[1] % len(VALID_TRIPLES)]
-        order = sorted(combo, key=lambda index: digest[2 + index])
-        style = digest[5] % 3
-        if style == 0:
-            return f'hashcolor-3p-{order[0]}-{order[1]}-{order[2]}'
-        if style == 1:
-            return f'hashcolor-3b-{order[0]}-{order[1]}-{order[2]}-{angle}'
-        return f'hashcolor-5p-{order[0]}-{order[1]}-{order[2]}'
+        # adjacent depending on the layout, so all 3 pairs need contrast): 3p/3b place
+        # each color once; 5p repeats the pattern as a 5-slice pie (a, b, c, a, b) -
+        # verified to never put two same-colored slices next to each other (including
+        # the wrap-around seam), so it never looks like a lower slice count than it
+        # actually has.
+        for order in permutations(triple):
+            for angle in ANGLES_DEGREES:
+                specs.append((f'hashcolor-3b-{order[0]}-{order[1]}-{order[2]}-{angle}', 'band', order, angle))
+            specs.append((f'hashcolor-3p-{order[0]}-{order[1]}-{order[2]}', 'pie', order, 0))
+            five_pattern = five_slice_pie_pattern(order)
+            specs.append((f'hashcolor-5p-{order[0]}-{order[1]}-{order[2]}', 'pie', five_pattern, 0))
 
-    if family == 2:
-        # 4-slice pie, 3 colors as (anchor, b, anchor, c) - see VALID_ABAC_TRIPLES.
-        # b and c are diagonal to each other (never touch), so they can be freely
-        # reordered by digest same as any other pair.
-        anchor, b, c = VALID_ABAC_TRIPLES[digest[1] % len(VALID_ABAC_TRIPLES)]
-        b, c = sorted((b, c), key=lambda index: digest[2 + index])
-        return f'hashcolor-4p3-{anchor}-{b}-{c}'
+    for anchor, b, c in VALID_ABAC_TRIPLES:
+        # 4-slice pie, 3 colors as (anchor, b, anchor, c) - see VALID_ABAC_TRIPLES. b
+        # and c are diagonal to each other (never touch), so both orderings are valid.
+        for b_order, c_order in permutations((b, c)):
+            name = f'hashcolor-4p3-{anchor}-{b_order}-{c_order}'
+            specs.append((name, 'pie', (anchor, b_order, anchor, c_order), 0))
 
-    # family == 3: 4-slice pie, 4 distinct colors - see VALID_QUADS. Only some
-    # orderings of a given 4 colors satisfy the adjacency-only contrast rule, so the
-    # stored arrangement is used exactly as-is, not re-sorted by digest.
-    cycle = VALID_QUADS[digest[1] % len(VALID_QUADS)]
-    return f'hashcolor-4p4-{cycle[0]}-{cycle[1]}-{cycle[2]}-{cycle[3]}'
+    for cycle in VALID_QUADS:
+        # 4-slice pie, 4 distinct colors - see VALID_QUADS. Only some orderings of a
+        # given 4 colors satisfy the adjacency-only contrast rule, so the stored
+        # arrangement is used exactly as-is, not reordered.
+        name = f'hashcolor-4p4-{cycle[0]}-{cycle[1]}-{cycle[2]}-{cycle[3]}'
+        specs.append((name, 'pie', cycle, 0))
+
+    return specs
+
+
+ALL_EMBLEMS: list[EmblemSpec] = _build_all_emblems()
+ALL_EMBLEM_NAMES: list[str] = [spec[0] for spec in ALL_EMBLEMS]
+
+
+def hash_to_emblem_name(digest: bytes) -> str:
+    # Every reachable emblem gets equal selection probability: index into the full,
+    # deterministically-ordered ALL_EMBLEM_NAMES list using the entire digest as one
+    # big integer, not any single byte (a single byte only spans 0-255, which
+    # couldn't even reach every index once the list grew past 256 entries). A prior
+    # version instead picked a "family" uniformly and then a name within it - which
+    # looks equivalent but isn't: families have wildly different sizes (7 solid
+    # colors vs. 216 two-color combos), so a name in the smallest family ended up
+    # ~30x more likely to be picked than one in the largest, defeating the point of
+    # hashing (files should collide onto the same emblem only by chance, not because
+    # some emblems are systematically favored).
+    index = int.from_bytes(digest, 'big') % len(ALL_EMBLEM_NAMES)
+    return ALL_EMBLEM_NAMES[index]

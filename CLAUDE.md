@@ -25,8 +25,11 @@ just orientation and gotchas for picking the project back up.
   modes), `AsyncFullHash` (GIO async file reading), `SerialQueue` (one hash at
   a time), `HashCache` (SQLite, self-healing if the cache file is deleted).
 - `palette.py` - the color palette and `hash_to_emblem_name()`: maps a digest
-  to one of ~470 pre-rendered emblem names (2/3/4/5/6-color combinations in
-  band/pie layouts).
+  to one of ~480 pre-rendered emblem names (solid, and 2/3/4/5/6-color
+  combinations in band/pie layouts), all listed in `ALL_EMBLEMS`/
+  `ALL_EMBLEM_NAMES` and indexed by `int.from_bytes(digest, 'big') %
+  len(ALL_EMBLEM_NAMES)` so every emblem has equal selection odds regardless
+  of which color-count family it belongs to.
 - `generate_emblems.py` - dev-time script that renders every reachable emblem
   name from `palette.py` to `emblems/*.png`. Run it after *any* change to
   `palette.py`.
@@ -93,7 +96,7 @@ just orientation and gotchas for picking the project back up.
 
 Check `TODO.md` for what's explicitly still open. As of this file being
 written: the extension is functionally complete (hashing, caching,
-per-directory Fast/Precise/off toggle via the Properties dialog, ~470-emblem
+per-directory Fast/Precise/off toggle via the Properties dialog, ~480-emblem
 palette, and a queueing/display model where only the file actively being
 hashed shows the "synchronizing" placeholder). Not yet done: the two items in
 `TODO.md` (cache algorithm-versioning before any real release; nothing else

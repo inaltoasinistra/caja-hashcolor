@@ -6,6 +6,7 @@ import unittest
 from itertools import combinations, permutations
 
 from palette import (
+    ALL_EMBLEM_NAMES,
     ANGLES_DEGREES,
     MIN_HUE_DISTANCE_DEGREES,
     PALETTE,
@@ -152,7 +153,27 @@ class TestValidCombinations(unittest.TestCase):
                 self.assertLess(index, PALETTE_SIZE)
 
 
+class TestAllEmblemNames(unittest.TestCase):
+    def test_no_duplicate_names(self):
+        """ALL_EMBLEM_NAMES is indexed directly by digest % len(...) - a duplicate
+        would silently shrink the effective selection space and skew probability
+        toward whichever name repeats, the exact bug this list exists to avoid."""
+        self.assertEqual(len(ALL_EMBLEM_NAMES), len(set(ALL_EMBLEM_NAMES)))
+
+
 class TestHashToEmblemName(unittest.TestCase):
+    def test_index_maps_directly_into_all_emblem_names(self):
+        """Pins down the actual selection algorithm - the full digest read as one big
+        integer, modulo len(ALL_EMBLEM_NAMES) - rather than a per-byte 'pick a family,
+        then a name within it' scheme. The old scheme picked among 5 families with
+        roughly equal probability regardless of family size, so a name in the
+        7-entry solid family was ~30x more likely than one in the 216-entry pair
+        family - every entry here must instead have exactly equal odds."""
+        total = len(ALL_EMBLEM_NAMES)
+        for index in (0, 1, total - 1, total, total + 5, 2 * total - 1):
+            digest = index.to_bytes(32, 'big')
+            self.assertEqual(hash_to_emblem_name(digest), ALL_EMBLEM_NAMES[index % total])
+
     def test_deterministic(self):
         digest = digest_of(b'same input')
         self.assertEqual(hash_to_emblem_name(digest), hash_to_emblem_name(digest))
