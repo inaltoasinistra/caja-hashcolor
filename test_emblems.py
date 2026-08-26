@@ -90,12 +90,6 @@ class TestFindEmblemDir(unittest.TestCase):
         os.makedirs(path)
         return path
 
-    @patch.dict(os.environ, {}, clear=True)
-    def test_defaults_when_xdg_unset(self) -> None:
-        """Without XDG_DATA_* set, the spec's own defaults apply, user dir first."""
-        self.assertEqual(os.path.expanduser('~/.local/share'), emblems.data_dirs()[0])
-        self.assertEqual(['/usr/local/share', '/usr/share'], emblems.data_dirs()[1:])
-
     def test_finds_a_system_install(self) -> None:
         expected = self._make_emblem_dir(self.system_dir)
         with patch.dict(os.environ, {'XDG_DATA_HOME': self.user_dir, 'XDG_DATA_DIRS': self.system_dir}):

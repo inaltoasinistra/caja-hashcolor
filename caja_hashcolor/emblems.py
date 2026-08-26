@@ -12,6 +12,8 @@ through. Hence a private data directory plus a search path.
 """
 import os
 
+from caja_hashcolor import xdg
+
 EMBLEM_SUBDIR = os.path.join('caja-hashcolor', 'emblems')
 # Where the emblems sit in a source checkout: this file is caja_hashcolor/emblems.py,
 # so the repository root is two levels up. Only reachable when running straight from
@@ -19,19 +21,10 @@ EMBLEM_SUBDIR = os.path.join('caja-hashcolor', 'emblems')
 SOURCE_EMBLEM_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'emblems')
 
 
-def data_dirs() -> list[str]:
-    """The XDG data directories, most specific first - the same search order
-    caja-python itself uses to find extensions, so a user install shadows a
-    system one for the emblems exactly as it does for the extension."""
-    user_dir = os.environ.get('XDG_DATA_HOME') or os.path.expanduser('~/.local/share')
-    system_dirs = os.environ.get('XDG_DATA_DIRS') or '/usr/local/share:/usr/share'
-    return [user_dir] + [directory for directory in system_dirs.split(':') if directory]
-
-
 def find_emblem_dir() -> str:
     """The directory to hand to Gtk.IconTheme.append_search_path(). Falls back to
     the source checkout, which is what makes running from a clone work at all."""
-    for base in data_dirs():
+    for base in xdg.data_dirs():
         candidate = os.path.join(base, EMBLEM_SUBDIR)
         if os.path.isdir(candidate):
             return candidate

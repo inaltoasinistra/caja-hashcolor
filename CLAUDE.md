@@ -2,8 +2,9 @@
 
 Caja (MATE file manager) extension: colors each file's icon with an emblem
 derived from its content hash, so identical/near-identical files are easy to
-spot at a glance. Read `README.md` first for the full design - this file is
-just orientation and gotchas for picking the project back up.
+spot at a glance. Read `DEVELOPMENT.md` first for why it is built the way it is
+(`README.md` is user documentation) - this file is just orientation and gotchas
+for picking the project back up.
 
 ## Commands
 
@@ -40,6 +41,9 @@ just orientation and gotchas for picking the project back up.
   regardless of which color-count family it belongs to.
 - `caja_hashcolor/config.py` - per-directory Fast/Precise/off setting, stored
   as two path lists in `~/.config/caja-hashcolor/config.json`.
+- `caja_hashcolor/xdg.py` - XDG base directory resolution. Every path outside
+  the install prefix (settings, cache, installed emblems) goes through here;
+  don't reintroduce a bare `os.path.expanduser('~/.config/...')` anywhere.
 - `Makefile` - the whole install story (see Commands above).
 - `generate_emblems.py` - dev-time script (the only thing needing Pillow) that
   renders every reachable emblem name from `palette.py` to `emblems/*.png`. Run
@@ -52,6 +56,9 @@ just orientation and gotchas for picking the project back up.
   tested (`test_hash_color.py`), using a `FakeAsyncFullHash` to control hash
   completion deterministically without a real GLib main loop - see that
   file's docstring for the pattern.
+- `DEVELOPMENT.md` - install layout, make targets and the design rationale;
+  all of it used to live in `README.md`. Keep implementation detail here -
+  the README is user documentation only.
 - `TODO.md` - known follow-ups, read it before assuming something's finished.
 
 ## Things that will bite you if you forget them

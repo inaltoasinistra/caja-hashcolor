@@ -9,6 +9,8 @@ import gi
 gi.require_version('Gio', '2.0')
 from gi.repository import Gio, GLib  # noqa: E402
 
+from caja_hashcolor import xdg  # noqa: E402
+
 Mode = Literal['fast', 'precise']
 
 FAST_MODE_FULL_HASH_THRESHOLD_BYTES = 1024 * 1024
@@ -17,7 +19,7 @@ TAIL_ANCHOR_BYTES = 250 * 1024
 READ_CHUNK_SIZE_BYTES = 1024 * 1024
 ASYNC_READ_CHUNK_BYTES = 1024 * 1024
 
-DEFAULT_CACHE_PATH = os.path.expanduser('~/.cache/caja-hashcolor/cache.db')
+DEFAULT_CACHE_PATH = os.path.join(xdg.cache_home(), 'caja-hashcolor', 'cache.db')
 
 
 def _full_hash(path: str) -> bytes:

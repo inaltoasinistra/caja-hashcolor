@@ -72,7 +72,7 @@ def generate_emblems() -> None:
 
     # Remove stale files from a previous emblem design (e.g. the old 24-solid-color
     # palette) so the directory doesn't accumulate unused images. Only ever touches
-    # our own "hashcolor-*" naming - anything else (e.g. hand-made reference images)
+    # our own "hashcolor-*" naming - anything else a user has dropped in there
     # is left alone.
     for filename in os.listdir(OUTPUT_DIR):
         if not filename.startswith('hashcolor-') or not filename.endswith('.png'):

@@ -4,7 +4,9 @@ import os
 from pathlib import Path
 from typing import Literal, TypedDict
 
-CONFIG_DIR = Path(os.path.expanduser('~/.config/caja-hashcolor'))
+from caja_hashcolor import xdg
+
+CONFIG_DIR = Path(xdg.config_home()) / 'caja-hashcolor'
 CONFIG_PATH = CONFIG_DIR / 'config.json'
 
 Mode = Literal['fast', 'precise']
