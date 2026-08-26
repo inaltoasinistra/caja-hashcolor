@@ -7,12 +7,15 @@ just orientation and gotchas for picking the project back up.
 
 ## Commands
 
-- Run all tests: `python3 -m unittest discover -p "test_*.py"`
+- Run all tests: `make test` (= `python3 -m unittest discover -p "test_*.py"`)
 - Run one test file: `python3 -m unittest test_hashing`
 - Run one test case/method: `python3 -m unittest test_hashing.TestComputeDigest.test_fast_mode_small_file`
-- Regenerate emblems after any `palette.py` change: `python3 generate_emblems.py`
-- Install/link the extension: see `README.md`'s Install section (symlinks the
-  `.py` files and `emblems/` into `~/.local/share/caja-python/extensions/`).
+- Regenerate emblems after any `palette.py` change: `make emblems`, then
+  `make install-emblems` to copy them into the icon theme.
+- Install: `make install` (user, `~/.local`) or `sudo make install` (system,
+  `/usr`). `make link` is the development install - it symlinks `hash_color.py`
+  and the `caja_hashcolor/` package so edits are live after a Caja restart.
+  `make uninstall` removes everything. See `README.md` for the full story.
 - Reload after any code or emblem change: `caja -q` (auto-restarts on next
   `caja` open or folder navigation).
 
@@ -20,21 +23,29 @@ just orientation and gotchas for picking the project back up.
 
 - `hash_color.py` - the actual Caja extension (`HashColorExtension`, a
   `Caja.InfoProvider` + `Caja.PropertyPageProvider`). Most of the real
-  complexity lives here.
-- `hashing.py` - pure hashing/caching logic: `compute_digest()` (Fast/Precise
-  modes), `AsyncFullHash` (GIO async file reading), `SerialQueue` (one hash at
-  a time), `HashCache` (SQLite, self-healing if the cache file is deleted).
-- `palette.py` - the color palette and `hash_to_emblem_name()`: maps a digest
-  to one of ~480 pre-rendered emblem names (solid, and 2/3/4/5/6-color
-  combinations in band/pie layouts), all listed in `ALL_EMBLEMS`/
-  `ALL_EMBLEM_NAMES` and indexed by `int.from_bytes(digest, 'big') %
-  len(ALL_EMBLEM_NAMES)` so every emblem has equal selection odds regardless
-  of which color-count family it belongs to.
-- `generate_emblems.py` - dev-time script that renders every reachable emblem
-  name from `palette.py` to `emblems/*.png`. Run it after *any* change to
-  `palette.py`.
-- `config.py` - per-directory Fast/Precise/off setting, stored as two path
-  lists in `~/.config/caja-hashcolor/config.json`.
+  complexity lives here. It is deliberately the *only* top-level module:
+  caja-python inserts the extensions directory at `sys.path[0]` and imports
+  every top-level `.py` in it, so everything else lives in the
+  `caja_hashcolor/` package beside it (flat `config`/`hashing`/`palette`
+  modules would shadow those names for every other extension on the system).
+- `caja_hashcolor/hashing.py` - pure hashing/caching logic: `compute_digest()`
+  (Fast/Precise modes), `AsyncFullHash` (GIO async file reading), `SerialQueue`
+  (one hash at a time), `HashCache` (SQLite, self-healing if the cache file is
+  deleted).
+- `caja_hashcolor/palette.py` - the color palette and `hash_to_emblem_name()`:
+  maps a digest to one of ~480 pre-rendered emblem names (solid, and
+  2/3/4/5/6-color combinations in band/pie layouts), all listed in
+  `ALL_EMBLEMS`/`ALL_EMBLEM_NAMES` and indexed by `int.from_bytes(digest,
+  'big') % len(ALL_EMBLEM_NAMES)` so every emblem has equal selection odds
+  regardless of which color-count family it belongs to.
+- `caja_hashcolor/config.py` - per-directory Fast/Precise/off setting, stored
+  as two path lists in `~/.config/caja-hashcolor/config.json`.
+- `Makefile` - the whole install story (see Commands above).
+- `generate_emblems.py` - dev-time script (the only thing needing Pillow) that
+  renders every reachable emblem name from `palette.py` to `emblems/*.png`. Run
+  it after *any* change to `palette.py`. `test_emblems.py` guards the result:
+  the shipped PNGs must match `ALL_EMBLEM_NAMES` exactly, since `make install`
+  copies them into the icon theme by glob with no build step.
 - `test_*.py` - real unit tests for everything except the Caja-glue parts of
   `hash_color.py` that need a live Caja process to matter (menu/property-page
   wiring). The queueing/display logic in `hash_color.py` itself *is* unit
@@ -50,10 +61,12 @@ just orientation and gotchas for picking the project back up.
   single process serving every Caja window for the user, so this affects all
   of them, not just a test one.
 - **Regenerating emblems also needs a Caja restart**, separately from a code
-  restart: `Gtk.IconTheme.get_default().append_search_path(...)` is called
-  once at extension load, and Caja doesn't notice new files added to that
-  directory afterward. Run `generate_emblems.py`, *then* restart Caja, or new
-  emblem names will render as broken/missing icons. (`TODO.md` has more.)
+  restart, *and* a `make install-emblems`: the emblems are installed into
+  `share/icons/hicolor/32x32/emblems/` and resolved by bare name through
+  `GtkIconTheme`, so a PNG that only exists in the repo's `emblems/` directory
+  is invisible to Caja, and one added while Caja is running may still render as
+  a broken icon until it restarts. (The extension used to
+  `append_search_path()` the repo directory instead; that is gone.)
 - **`Caja.PropertyPageProvider`'s real method name is `get_property_pages`,
   not `get_pages`.** `dir(Caja.PropertyPageProvider)` via GObject
   Introspection reports `get_pages` as the interface's virtual function, but

@@ -20,16 +20,17 @@ automatically treated as cache misses instead of requiring a manual wipe.
 
 ## Caja needs a restart after regenerating emblems
 
-`hash_color.py` registers the `emblems/` directory with
-`Gtk.IconTheme.get_default().append_search_path(...)` once, when the
-extension loads. If `generate_emblems.py` adds or renames files afterward
-while Caja is still running, Caja doesn't notice - it keeps using whatever
-file listing it saw at startup, so any digest that resolves to a newer emblem
-name shows as a missing/broken icon. Confirmed during development: after
-several rounds of adding new emblem styles, every currently-cached file's
-emblem had been generated after Caja's last startup, and all appeared broken
-until `caja -q` + relaunch.
+Emblems are installed into `share/icons/hicolor/32x32/emblems/` and looked up
+by bare name through `GtkIconTheme`. A newly rendered PNG is therefore invisible
+to Caja twice over: until `make install-emblems` copies it into the icon theme,
+and then until Caja restarts, since a running process can keep serving lookups
+from the icon theme state it already scanned. Any digest resolving to a name it
+hasn't seen shows as a missing/broken icon in the meantime. Confirmed during
+development: after several rounds of adding new emblem styles, every
+currently-cached file's emblem had been generated after Caja's last startup,
+and all appeared broken until `caja -q` + relaunch.
 
-Not a problem for a real install (the emblem set is finished before the
-extension is ever loaded), but during development, always restart Caja after
-running `generate_emblems.py`, not just refresh (Ctrl+R) the window.
+Not a problem for a real install (the emblem set is finished and installed
+before the extension is ever loaded), but during development, always
+`make emblems && make install-emblems && caja -q` - a window refresh (Ctrl+R)
+is not enough.

@@ -12,10 +12,8 @@ gi.require_version('Gtk', '3.0')
 
 from gi.repository import Gio, GLib  # noqa: E402
 
-import config as config_module  # noqa: E402
 import hash_color  # noqa: E402
-import hashing  # noqa: E402
-import palette  # noqa: E402
+from caja_hashcolor import config as config_module, hashing, palette  # noqa: E402
 
 
 class FakeAsyncFullHash:

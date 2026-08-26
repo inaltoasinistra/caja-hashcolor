@@ -4,11 +4,9 @@
 # own independent Fast/Precise/off setting, toggled from the "Visual hash" tab in a
 # file or folder's Properties dialog (Off/Fast/Precise radio buttons).
 #
-# Install (this file, config.py, hashing.py and palette.py must sit together):
-#   1. python3 generate_emblems.py            # renders emblems/hashcolor-NN.png once
-#   2. mkdir -p ~/.local/share/caja-python/extensions
-#      ln -sfn "$PWD"/*.py "$PWD"/emblems ~/.local/share/caja-python/extensions/
-#   3. caja -q && caja                        # restart Caja to load the extension
+# Install: `make install` (or `sudo make install` system-wide), then `caja -q`.
+# This file is the only module caja-python loads as an extension; everything else
+# lives in the caja_hashcolor package beside it. See README.md.
 #
 # Caja's Python bindings have no single "refresh everything" call, but
 # Caja.FileInfo.invalidate_extension_info() asks Caja to re-query providers for one
@@ -58,11 +56,8 @@ gi.require_version('Gtk', '3.0')
 
 from gi.repository import Caja, Gio, GLib, GObject, Gtk  # noqa: E402
 
-import config
-import hashing
-import palette
+from caja_hashcolor import config, hashing, palette
 
-EMBLEM_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emblems')
 CACHE_PATH = hashing.DEFAULT_CACHE_PATH
 COMPUTING_EMBLEM_NAME = 'emblem-synchronizing'  # stock icon, already shipped with the icon theme
 # A full hash (Precise mode, or Fast mode on a small file) has no built-in size cap,
@@ -84,8 +79,6 @@ _queued_handles: set = set()  # handles submitted to _queue but not yet started
 _skip_handles: set = set()  # queued handles to discard without hashing once their turn comes
 _handle_paths: dict[object, str] = {}  # handle -> path, so cancellation can be scoped to one directory
 _path_handles: dict[str, object] = {}  # path -> the one handle currently queued or running for it (dedup guard)
-
-Gtk.IconTheme.get_default().append_search_path(EMBLEM_DIR)
 
 
 def _resolves_instantly(path: str, mode: str | None) -> bool:

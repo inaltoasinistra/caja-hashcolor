@@ -5,7 +5,7 @@ import re
 import unittest
 from itertools import combinations, permutations
 
-from palette import (
+from caja_hashcolor.palette import (
     ALL_EMBLEM_NAMES,
     ANGLES_DEGREES,
     MIN_HUE_DISTANCE_DEGREES,

@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-import config
+from caja_hashcolor import config
 
 
 class TestConfig(unittest.TestCase):

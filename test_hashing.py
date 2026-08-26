@@ -9,7 +9,7 @@ import gi
 gi.require_version('Gio', '2.0')
 from gi.repository import Gio, GLib  # noqa: E402
 
-from hashing import (
+from caja_hashcolor.hashing import (
     ASYNC_READ_CHUNK_BYTES,
     FAST_MODE_FULL_HASH_THRESHOLD_BYTES,
     HEAD_ANCHOR_BYTES,

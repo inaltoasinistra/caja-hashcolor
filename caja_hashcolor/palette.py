@@ -39,6 +39,12 @@ ANGLES_DEGREES = [0, 45, 90, 135]
 # an invisible emblem is how a disabled directory's stale color actually clears.
 CLEAR_EMBLEM_NAME = 'hashcolor-clear'
 
+# Every emblem is rendered at this size, which also decides the icon-theme size
+# directory the Makefile installs them into (share/icons/hicolor/32x32/emblems).
+# It lives here rather than in generate_emblems.py so the tests can check the
+# rendered files against it without pulling in that script's Pillow dependency.
+EMBLEM_SIZE_PX = 32
+
 
 def _hue_distance(hue_a: float, hue_b: float) -> float:
     diff = abs(hue_a - hue_b) % 360

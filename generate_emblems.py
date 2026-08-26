@@ -4,9 +4,8 @@ import os
 
 from PIL import Image, ImageDraw
 
-from palette import ALL_EMBLEMS, CLEAR_EMBLEM_NAME, PALETTE
+from caja_hashcolor.palette import ALL_EMBLEMS, CLEAR_EMBLEM_NAME, EMBLEM_SIZE_PX, PALETTE
 
-EMBLEM_SIZE_PX = 32
 SUPERSAMPLE = 8  # render larger then downscale, for anti-aliased edges at 32px
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emblems')
 

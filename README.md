@@ -1,34 +1,83 @@
 # caja-hashcolor
 
-Caja (MATE file manager) extension that overlays a small colored emblem on each
-file's icon, deterministically derived from the file's content hash. Off by
-default in every directory; each directory has its own independent setting,
-toggled from the "Visual hash" tab in a file or folder's Properties dialog.
+A Caja (MATE file manager) extension that colors each file's icon with a small
+emblem derived from the file's content hash — so identical and near-identical
+files are obvious at a glance, without opening, comparing or checksumming
+anything by hand.
 
-There's no way to recolor a file's text label or row background through
-Caja's extension API — emblems (small badge icons on the corner of the file
-icon) are the only supported per-file visual hook, so that's what this
-implements.
+![Caja showing two identical .deb files with the same hash emblem, next to the Visual hash tab of the Properties dialog](docs/screenshot.png)
+
+In the shot above, the two `.deb` files are byte-identical copies and get the
+same emblem; the two text files differ and get their own. The emblem is picked
+purely from the digest, so the same content always produces the same picture,
+in any directory, on any machine.
+
+There's no way to recolor a file's text label or row background through Caja's
+extension API — emblems (small badge icons on the corner of the file icon) are
+the only supported per-file visual hook, so that's what this implements.
+
+## Features
+
+- **Off everywhere by default.** Each directory has its own independent
+  setting; enabling it in one folder affects nothing else, not even its
+  subfolders.
+- **Two modes.** *Fast* samples large files, *Precise* always reads them whole.
+- **480 distinct emblems** — solid colors plus 2/3/4/5/6-color band and pie
+  layouts, from a hand-tuned 7-hue palette, every one equally likely.
+- **Never blocks the file manager.** Hashing runs on GIO async I/O, one file at
+  a time, and is cancelled when you navigate away.
+- **Results are cached** in SQLite and invalidated on size/mtime change, so a
+  directory is only slow the first time.
+
+Sample emblems: ![](docs/examples/example-0.png) ![](docs/examples/example-1.png) ![](docs/examples/example-2.png) ![](docs/examples/example-3.png) ![](docs/examples/example-4.png)
+
+## Requirements
+
+- `caja` and `python3-caja` — the Caja GObject-introspection bindings. The
+  package is usually called `python3-caja` on Debian/Ubuntu/Mint and
+  `caja-python` or `python-caja` elsewhere.
+- `python3-gi` and the GTK 3 typelib (`gir1.2-gtk-3.0` on Debian/Ubuntu).
+- Python 3.10 or newer.
+
+Nothing else. Pillow is **not** required: all emblems are committed to the
+repository already, and `generate_emblems.py` (the only thing that needs it) is
+a development tool.
 
 ## Install
 
 ```
-python3 generate_emblems.py            # renders emblems/hashcolor-NN.png once
-mkdir -p ~/.local/share/caja-python/extensions
-ln -sfn "$PWD"/*.py "$PWD"/emblems ~/.local/share/caja-python/extensions/
-caja -q && caja                        # restart Caja to load the extension
+git clone https://github.com/inaltoasinistra/caja-hashcolor.git
+cd caja-hashcolor
+make install     # for the current user, into ~/.local
+caja -q          # Caja restarts on its own the next time you open a folder
 ```
 
-Requires the `python3-caja` package (provides the `Caja` GObject-introspection
-bindings) in addition to `caja` itself.
+Use `sudo make install` instead to install system-wide into `/usr` for every
+user on the machine. `make install PREFIX=/opt/somewhere` overrides the prefix,
+and `make install DESTDIR=/build/root` stages the files without touching the
+live system, for building a distro package.
 
-`caja -q` quits every Caja window/process; the extension only loads on the
-next start.
+`caja -q` quits every Caja window and process — it's a single process serving
+all of them — and the extension is only picked up on the next start.
+
+## Uninstall
+
+```
+make uninstall       # or `sudo make uninstall` if you installed system-wide
+caja -q
+```
+
+That removes the extension and its emblems. Your own settings and the digest
+cache are left alone; delete them by hand if you want them gone:
+
+```
+rm -rf ~/.config/caja-hashcolor ~/.cache/caja-hashcolor
+```
 
 ## Usage
 
-Right-click any single file or folder and choose **Properties**. The dialog
-has a **Visual hash** tab with three radio buttons:
+Right-click any single file or folder and choose **Properties**. The dialog has
+a **Visual hash** tab (see the screenshot above) with three radio buttons:
 
 - **Off** / **Fast** / **Precise** — see below for the difference between the
   two active modes. Selecting one applies it *to the current directory only*
@@ -83,6 +132,40 @@ plain path lists, `fast_dirs` and `precise_dirs` (a directory is in at most
 one of the two). Directories that no longer exist are pruned from both lists
 once per Caja session, alongside the equivalent cache cleanup for deleted
 files, so the lists don't grow forever as directories come and go.
+
+## Where things live
+
+| What                 | User install (`make install`)                 | System install (`sudo make install`)      |
+|----------------------|-----------------------------------------------|-------------------------------------------|
+| Extension            | `~/.local/share/caja-python/extensions/`      | `/usr/share/caja-python/extensions/`      |
+| Emblems              | `~/.local/share/icons/hicolor/32x32/emblems/` | `/usr/share/icons/hicolor/32x32/emblems/` |
+| Per-directory config | `~/.config/caja-hashcolor/config.json`        | same (per user)                           |
+| Digest cache         | `~/.cache/caja-hashcolor/cache.db`            | same (per user)                           |
+
+`hash_color.py` is the only module Caja loads as an extension; everything else
+lives in the `caja_hashcolor` package next to it. That matters because
+caja-python inserts the extensions directory at `sys.path[0]` and imports every
+top-level `.py` it finds there — flat modules named `config` or `hashing` would
+be visible to, and could shadow imports in, every other extension on the
+system.
+
+## Development
+
+```
+make test      # unit tests, no Caja process needed
+make link      # symlink install, so edits are live after `caja -q`
+make emblems   # re-render emblems/ after changing palette.py (needs Pillow)
+caja -q        # Caja does not hot-reload; restart it after *any* change
+```
+
+After `make emblems`, run `make install-emblems` to copy the new files into the
+icon theme (`make link` does that too), then restart Caja. A running Caja can
+keep serving icon lookups from what the icon theme had already scanned, so a
+freshly added emblem name may otherwise render as a missing icon.
+
+## License
+
+MIT - see [LICENSE](LICENSE).
 
 ## Design notes
 
