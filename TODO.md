@@ -20,11 +20,12 @@ automatically treated as cache misses instead of requiring a manual wipe.
 
 ## Caja needs a restart after regenerating emblems
 
-Emblems are installed into `share/icons/hicolor/32x32/emblems/` and looked up
-by bare name through `GtkIconTheme`. A newly rendered PNG is therefore invisible
-to Caja twice over: until `make install-emblems` copies it into the icon theme,
-and then until Caja restarts, since a running process can keep serving lookups
-from the icon theme state it already scanned. Any digest resolving to a name it
+Emblems are installed into `share/caja-hashcolor/emblems/` and registered with
+`Gtk.IconTheme.append_search_path()` once, at extension load. A newly rendered
+PNG is therefore invisible to Caja twice over: until `make install-emblems`
+copies it into that directory, and then until Caja restarts, since the search
+path is scanned once and a running process keeps serving lookups from what it
+already saw. Any digest resolving to a name it
 hasn't seen shows as a missing/broken icon in the meantime. Confirmed during
 development: after several rounds of adding new emblem styles, every
 currently-cached file's emblem had been generated after Caja's last startup,

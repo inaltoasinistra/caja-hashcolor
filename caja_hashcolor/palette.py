@@ -39,8 +39,9 @@ ANGLES_DEGREES = [0, 45, 90, 135]
 # an invisible emblem is how a disabled directory's stale color actually clears.
 CLEAR_EMBLEM_NAME = 'hashcolor-clear'
 
-# Every emblem is rendered at this size, which also decides the icon-theme size
-# directory the Makefile installs them into (share/icons/hicolor/32x32/emblems).
+# Every emblem is rendered at this size. Emblems are looked up as unthemed icons
+# (see caja_hashcolor/emblems.py), which means GTK hands Caja the file as-is
+# rather than picking a per-size variant, so they all have to agree on one size.
 # It lives here rather than in generate_emblems.py so the tests can check the
 # rendered files against it without pulling in that script's Pillow dependency.
 EMBLEM_SIZE_PX = 32

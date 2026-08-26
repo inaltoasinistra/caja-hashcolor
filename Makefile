@@ -10,7 +10,10 @@ endif
 
 DEST     := $(DESTDIR)$(PREFIX)
 EXTDEST  := $(DEST)/share/caja-python/extensions
-ICONDEST := $(DEST)/share/icons/hicolor/32x32/emblems
+# A private directory, not share/icons/: emblems installed into the icon theme's
+# Emblems context turn up in Caja's manual emblem chooser, where 480 hash colors
+# are pure noise. hash_color.py registers this as an icon-theme search path.
+EMBLEMDEST := $(DEST)/share/caja-hashcolor/emblems
 
 # hash_color.py is the only top-level module: caja-python imports every .py in
 # the extensions directory, so everything else has to live inside the package.
@@ -21,43 +24,30 @@ EMBLEMS   := $(wildcard emblems/hashcolor-*.png)
 
 INSTALL_DATA := install -Dm644
 
-.PHONY: install install-extension install-emblems uninstall icon-cache link emblems test
+.PHONY: install install-extension install-emblems uninstall link emblems test
 
-install: install-extension install-emblems icon-cache
+install: install-extension install-emblems
 
 install-extension:
 	$(INSTALL_DATA) $(EXTENSION) -t $(EXTDEST)
 	$(INSTALL_DATA) $(MODULES) -t $(EXTDEST)/$(PACKAGE)
 
 install-emblems:
-	$(INSTALL_DATA) $(EMBLEMS) -t $(ICONDEST)
-
-# The leading `-` keeps a missing gtk-update-icon-cache from failing the install.
-# Skipped entirely for a staged (DESTDIR) build: the cache belongs to the live
-# system, so distro packages regenerate it from their own post-install script
-# rather than shipping one built against a staging root.
-icon-cache:
-ifeq ($(DESTDIR),)
-	-gtk-update-icon-cache -q -f -t $(DEST)/share/icons/hicolor
-else
-	@echo 'DESTDIR set: skipping gtk-update-icon-cache (run it post-install)'
-endif
+	$(INSTALL_DATA) $(EMBLEMS) -t $(EMBLEMDEST)
 
 # The extensions directory's __pycache__ is shared with every other Caja
-# extension, so only our own entry is deleted, never the directory. rmdir is
-# likewise conditional: another package may ship emblems in the same place.
+# extension, so only our own entry is deleted, never the directory. The emblem
+# directory is ours alone, so it goes whole.
 uninstall:
 	$(RM) $(EXTDEST)/$(EXTENSION)
 	$(RM) -r $(EXTDEST)/$(PACKAGE)
 	$(RM) $(EXTDEST)/__pycache__/$(basename $(EXTENSION)).*.pyc
-	$(RM) $(ICONDEST)/hashcolor-*.png
-	-rmdir --ignore-fail-on-non-empty $(ICONDEST)
-	$(MAKE) icon-cache
+	$(RM) -r $(DEST)/share/caja-hashcolor
 
 # Development install: the modules are symlinked, so an edit is live after
-# `caja -q`, while the emblems are installed normally (a symlinked directory
-# is not something the icon theme would pick up).
-link: install-emblems icon-cache
+# `caja -q`, while the emblems are installed normally - find_emblem_dir() looks
+# in the data directories first, so a symlinked repo copy would be ignored.
+link: install-emblems
 	install -d $(EXTDEST)
 	ln -sfn $(CURDIR)/$(EXTENSION) $(CURDIR)/$(PACKAGE) $(EXTDEST)/
 

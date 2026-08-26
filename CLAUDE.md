@@ -61,12 +61,19 @@ just orientation and gotchas for picking the project back up.
   single process serving every Caja window for the user, so this affects all
   of them, not just a test one.
 - **Regenerating emblems also needs a Caja restart**, separately from a code
-  restart, *and* a `make install-emblems`: the emblems are installed into
-  `share/icons/hicolor/32x32/emblems/` and resolved by bare name through
-  `GtkIconTheme`, so a PNG that only exists in the repo's `emblems/` directory
-  is invisible to Caja, and one added while Caja is running may still render as
-  a broken icon until it restarts. (The extension used to
-  `append_search_path()` the repo directory instead; that is gone.)
+  restart, *and* a `make install-emblems`: `emblems.find_emblem_dir()` resolves
+  to the *installed* copy under `share/caja-hashcolor/emblems/`, so a PNG that
+  only exists in the repo's `emblems/` directory is invisible to Caja, and one
+  added while Caja is running may still render as a broken icon until it
+  restarts.
+- **Do not install the emblems into the hicolor icon theme.** It works - names
+  resolve fine - but Caja's manual emblem chooser is
+  `gtk_icon_theme_list_icons(theme, "Emblems")`, so all 480 hash colors then
+  show up as hand-pickable emblems, drowning the ~29 real ones. They are
+  installed to a private directory registered with
+  `Gtk.IconTheme.append_search_path()` precisely because search-path icons are
+  unthemed: no context, never listed, still resolvable by name. This was tried
+  the other way once; don't repeat it.
 - **`Caja.PropertyPageProvider`'s real method name is `get_property_pages`,
   not `get_pages`.** `dir(Caja.PropertyPageProvider)` via GObject
   Introspection reports `get_pages` as the interface's virtual function, but

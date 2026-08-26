@@ -56,8 +56,9 @@ gi.require_version('Gtk', '3.0')
 
 from gi.repository import Caja, Gio, GLib, GObject, Gtk  # noqa: E402
 
-from caja_hashcolor import config, hashing, palette
+from caja_hashcolor import config, emblems, hashing, palette
 
+EMBLEM_DIR = emblems.find_emblem_dir()
 CACHE_PATH = hashing.DEFAULT_CACHE_PATH
 COMPUTING_EMBLEM_NAME = 'emblem-synchronizing'  # stock icon, already shipped with the icon theme
 # A full hash (Precise mode, or Fast mode on a small file) has no built-in size cap,
@@ -79,6 +80,10 @@ _queued_handles: set = set()  # handles submitted to _queue but not yet started
 _skip_handles: set = set()  # queued handles to discard without hashing once their turn comes
 _handle_paths: dict[object, str] = {}  # handle -> path, so cancellation can be scoped to one directory
 _path_handles: dict[str, object] = {}  # path -> the one handle currently queued or running for it (dedup guard)
+
+# Registers the emblems as unthemed icons: resolvable by name, but absent from
+# Caja's manual emblem chooser, which only lists the icon theme's Emblems context.
+Gtk.IconTheme.get_default().append_search_path(EMBLEM_DIR)
 
 
 def _resolves_instantly(path: str, mode: str | None) -> bool:

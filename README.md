@@ -135,12 +135,12 @@ files, so the lists don't grow forever as directories come and go.
 
 ## Where things live
 
-| What                 | User install (`make install`)                 | System install (`sudo make install`)      |
-|----------------------|-----------------------------------------------|-------------------------------------------|
-| Extension            | `~/.local/share/caja-python/extensions/`      | `/usr/share/caja-python/extensions/`      |
-| Emblems              | `~/.local/share/icons/hicolor/32x32/emblems/` | `/usr/share/icons/hicolor/32x32/emblems/` |
-| Per-directory config | `~/.config/caja-hashcolor/config.json`        | same (per user)                           |
-| Digest cache         | `~/.cache/caja-hashcolor/cache.db`            | same (per user)                           |
+| What                 | User install (`make install`)            | System install (`sudo make install`) |
+|----------------------|------------------------------------------|--------------------------------------|
+| Extension            | `~/.local/share/caja-python/extensions/` | `/usr/share/caja-python/extensions/` |
+| Emblems              | `~/.local/share/caja-hashcolor/emblems/` | `/usr/share/caja-hashcolor/emblems/` |
+| Per-directory config | `~/.config/caja-hashcolor/config.json`   | same (per user)                      |
+| Digest cache         | `~/.cache/caja-hashcolor/cache.db`       | same (per user)                      |
 
 `hash_color.py` is the only module Caja loads as an extension; everything else
 lives in the `caja_hashcolor` package next to it. That matters because
@@ -148,6 +148,14 @@ caja-python inserts the extensions directory at `sys.path[0]` and imports every
 top-level `.py` it finds there — flat modules named `config` or `hashing` would
 be visible to, and could shadow imports in, every other extension on the
 system.
+
+The emblems deliberately go in a private directory rather than into
+`share/icons/hicolor/32x32/emblems/`. Caja's manual emblem chooser (the
+**Emblems** tab of the Properties dialog) lists the icon theme's `Emblems`
+context, so installing there would add 480 hash colors to a list of about
+thirty — and a hash color means nothing when you pick it by hand. Registering
+the directory with `Gtk.IconTheme.append_search_path()` instead makes the
+emblems *unthemed*: resolvable by name, invisible to that list.
 
 ## Development
 
